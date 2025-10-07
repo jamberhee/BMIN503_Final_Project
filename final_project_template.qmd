@@ -1,7 +1,7 @@
 ---
 title: "Your Title"
 subtitle: "BMIN503/EPID600 Final Project"
-author: "FirstName LastName"
+author: "Amber Rhee"
 format: html
 editor: visual
 number-sections: true
@@ -25,6 +25,24 @@ Explain why your problem is interdisciplinary, what fields can contribute to its
 ## Methods {#sec-methods}
 
 Describe the data used and general methodological approach used to address the problem described in the @sec-introduction. Subsequently, incorporate full R code necessary to retrieve and clean data, and perform analysis. Be sure to include a description of code so that others (including your future self) can understand what you are doing and why.
+
+Load libraries
+```{r}
+library(tidyverse)
+```
+
+Load data
+```{r}
+## loaded according to recommended/provided code from NHIS
+### prevents errors in reading in data file due to missingness in data
+adult2023 <- read_csv("adult23.csv", guess_max = 29522)
+
+```
+
+Initial inspection of data
+```{r}
+```
+
 
 ## Results {#sec-results}
 
