@@ -16,22 +16,44 @@ Use this template to complete your project throughout the course. Your Final Pro
 
 Give a brief a description of your project and its goal(s), what data you are using to complete it, and what two faculty/staff in different fields you have spoken to about your project with a brief summary of what you learned from each person. Include a link to your final project GitHub repository.
 
+For my final project, I am using data from the 2023 NHIS's (Sample Adult) communication core and chronic pain content to examine the association between one's communication ability (which can, e.g., translate into ability to communicate symptoms to providers) and high impact pain (pain defined as significant enough to limit daily activities). John Farrar, MD, PhD has helped me consider potential confounders and effect modifiers that may affect the association between my variables of interest, while Adam Naj, PhD has helped me decide how I want to model the actual data in my analyis.
+
+[Final Project Repo](https://github.com/jamberhee/BMIN503_Final_Project)
+
 ## Introduction {#sec-introduction}
 
 Describe the problem addressed, its significance, and some background to motivate the problem. This should extend what is in the @sec-overview.
 
+Chronic pain is a major public health concern in the U.S., with high prevalence across sociodemographic groups \[1\]. As a subjective experience, proper communication of pain and relevant symptoms from patient to healthcare provider and belief of patient-report by providers are essential for adequate management \[2-4\]. Consequently, disparities in pain management are significant \[5\].
+
+References
+
+  1. Rikard SM, Strahan AE, Schmit KM, Guy GP Jr.. Chronic Pain Among Adults — United States, 2019–2021. MMWR Morb Mortal Wkly Rep 2023;72:379–385. DOI: http://dx.doi.org/10.15585/mmwr.mm7215a1
+  2. Sabater-Gárriz Á, Molina-Mula J, Montoya P, Riquelme I. Pain assessment tools in adults with communication disorders: systematic review and meta-analysis. BMC Neurol. 2024 Feb 17;24(1):66. doi: 10.1186/s12883-024-03539-w. PMID: 38368314; PMCID: PMC10873938.
+  3. Brown VL, James A, Hunleth J, Bradley CS, Farrar JT, Gupta P, Lai HH, Lowder JL, Moldwin R, Rodriguez LV, Yang CC, Sutcliffe S. Believing women: a qualitative exploration of provider disbelief and pain dismissal among women with interstitial cystitis/bladder pain syndrome from the MAPP research network. Int Urogynecol J. 2024 Jan;35(1):139-148. doi: 10.1007/s00192-023-05677-0. Epub 2023 Nov 22. PMID: 37991567; PMCID: PMC11019919.
+  4. Tosas, M.R. The downgrading of pain sufferers’ credibility. Philos Ethics Humanit Med 16, 8 (2021). https://doi.org/10.1186/s13010-021-00105-x
+  5. Nguyen LH, Dawson JE, Brooks M, Khan JS, Telusca N. Disparities in Pain Management. Anesthesiol Clin. 2023 Jun;41(2):471-488. doi: 10.1016/j.anclin.2023.03.008. PMID: 37245951.
+
 Explain why your problem is interdisciplinary, what fields can contribute to its understanding, and incorporate background related to what you learned from meeting with faculty/staff.
+
+Pain is often defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[6\]. Attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and neurologist, (will continue to add as I meet him again). Dr. Adam Naj, (will continue to add as I meet him again). 
+
+References
+
+6. Meints SM, Edwards RR. Evaluating psychosocial contributions to chronic pain outcomes. Prog Neuropsychopharmacol Biol Psychiatry. 2018 Dec 20;87(Pt B):168-182. doi: 10.1016/j.pnpbp.2018.01.017. Epub 2018 Jan 31. PMID: 29408484; PMCID: PMC6067990.
 
 ## Methods {#sec-methods}
 
 Describe the data used and general methodological approach used to address the problem described in the @sec-introduction. Subsequently, incorporate full R code necessary to retrieve and clean data, and perform analysis. Be sure to include a description of code so that others (including your future self) can understand what you are doing and why.
 
 Load libraries
+
 ```{r}
 library(tidyverse)
 ```
 
 Load data
+
 ```{r}
 ## loaded according to recommended/provided code from NHIS
 ### prevents errors in reading in data file due to missingness in data
@@ -40,9 +62,23 @@ adult2023 <- read_csv("adult23.csv", guess_max = 29522)
 ```
 
 Initial inspection of data
-```{r}
-```
 
+```{r}
+adult2023$COMDIFF_A <- ifelse(adult2023$COMDIFF_A > 4, NA, adult2023$COMDIFF_A)
+adult2023$COMDIFF_A <- factor(adult2023$COMDIFF_A,
+                              labels = c("None","Some","Lots","Complete"))
+table(adult2023$COMDIFF_A)
+
+adult2023$PAIWKLM3M_A <- ifelse(adult2023$PAIWKLM3M_A > 4, NA, adult2023$PAIWKLM3M_A)
+adult2023$PAIWKLM3M_A <- factor(adult2023$PAIWKLM3M_A,
+                                labels = c("Never","Some","Most","Every"))
+table(adult2023$PAIWKLM3M_A)
+table(adult2023$pain_binary)
+
+adult2023 <- adult2023 |>
+  mutate(pain_binary = ifelse(adult2023$PAIWKLM3M_A == "Never" | adult2023$PAIWKLM3M_A == "Some", 0, 1))
+prop.table(table(adult2023$COMDIFF_A,adult2023$pain_binary),2)
+```
 
 ## Results {#sec-results}
 
