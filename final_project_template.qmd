@@ -46,10 +46,14 @@ References
 
 Describe the data used and general methodological approach used to address the problem described in the @sec-introduction. Subsequently, incorporate full R code necessary to retrieve and clean data, and perform analysis. Be sure to include a description of code so that others (including your future self) can understand what you are doing and why.
 
-Load libraries
+Install and load libraries
 
 ```{r}
+# install.packages("tidyverse)
+# install.packages("survey")
+
 library(tidyverse)
+library(survey)
 ```
 
 Load data
@@ -59,25 +63,59 @@ Load data
 ### prevents errors in reading in data file due to missingness in data
 adult2023 <- read_csv("adult23.csv", guess_max = 29522)
 
+## https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2023/adult23csv.zip
+
 ```
 
 Initial inspection of data
 
 ```{r}
+## check unique adults in dataset
+### 29522 adults--one row per participant
+length(unique(adult2023$HHX))
+
+## change missing to NA
+## convert comm difficulty variable to factor
 adult2023$COMDIFF_A <- ifelse(adult2023$COMDIFF_A > 4, NA, adult2023$COMDIFF_A)
 adult2023$COMDIFF_A <- factor(adult2023$COMDIFF_A,
                               labels = c("None","Some","Lots","Complete"))
 table(adult2023$COMDIFF_A)
 
+## change missing to NA
+## convert high impact pain variable to factor
 adult2023$PAIWKLM3M_A <- ifelse(adult2023$PAIWKLM3M_A > 4, NA, adult2023$PAIWKLM3M_A)
 adult2023$PAIWKLM3M_A <- factor(adult2023$PAIWKLM3M_A,
                                 labels = c("Never","Some","Most","Every"))
 table(adult2023$PAIWKLM3M_A)
-table(adult2023$pain_binary)
 
+## create pain binary variable for outcome
 adult2023 <- adult2023 |>
   mutate(pain_binary = ifelse(adult2023$PAIWKLM3M_A == "Never" | adult2023$PAIWKLM3M_A == "Some", 0, 1))
+
+## examine outcome for sample size
+table(adult2023$pain_binary)
 prop.table(table(adult2023$COMDIFF_A,adult2023$pain_binary),2)
+```
+
+
+Examine sampling
+```{r}
+## rename variables of interest
+data <- adult2023 %>% 
+  rename(id = HHX,
+         strata = PSTRAT,
+         sweight = WTFA_A,
+         psu = PPSU,
+         comdiff = COMDIFF_A,
+         hip = PAIWKLM3M_A) 
+weighted_data <-svydesign(id=~psu, weights=~sweight,
+                          strata=~strata, nest=TRUE,
+                          data = data)
+
+summary(weighted_data)
+
+svytable(~comdiff+hip, weighted_data)
+svytable(~comdiff+pain_binary, weighted_data)
 ```
 
 ## Results {#sec-results}
