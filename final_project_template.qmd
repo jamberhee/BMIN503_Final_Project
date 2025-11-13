@@ -107,7 +107,12 @@ data <- adult2023 %>%
          sweight = WTFA_A,
          psu = PPSU,
          comdiff = COMDIFF_A,
-         hip = PAIWKLM3M_A) 
+         pain = PAIFRQ3M_A,
+         hip = PAIWKLM3M_A)  %>% 
+  filter(!is.na(comdiff))
+
+data <- data %>% 
+  mutate(hip = ifelse(pain == 1, 1, hip))
 weighted_data <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
