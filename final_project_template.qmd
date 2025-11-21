@@ -46,6 +46,7 @@ References
 
 Describe the data used and general methodological approach used to address the problem described in the @sec-introduction. Subsequently, incorporate full R code necessary to retrieve and clean data, and perform analysis. Be sure to include a description of code so that others (including your future self) can understand what you are doing and why.
 
+
 Install and load libraries
 
 ```{r}
@@ -54,7 +55,9 @@ Install and load libraries
 
 library(tidyverse)
 library(survey)
+library(dagitty)
 ```
+
 
 Load data
 
@@ -66,6 +69,7 @@ adult2023 <- read_csv("adult23.csv", guess_max = 29522)
 ## https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Datasets/NHIS/2023/adult23csv.zip
 
 ```
+
 
 Initial inspection of data
 
@@ -113,19 +117,40 @@ data <- adult2023 %>%
 
 data <- data %>% 
   mutate(hip = ifelse(pain == 1, 1, hip))
-weighted_data <-svydesign(id=~psu, weights=~sweight,
+weighted_data_test <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
 
-summary(weighted_data)
+summary(weighted_data_test)
 
-svytable(~comdiff+hip, weighted_data)
-svytable(~comdiff+pain_binary, weighted_data)
+svytable(~comdiff+hip, weighted_data_test)
+svytable(~comdiff+pain_binary, weighted_data_test)
+```
+
+
+
+```{r}
+## rename variables of interest (confounders, effect modifiers)
+data <- data %>% 
+  rename(lang_other = LANGHM_A,
+         lang_tv = LANGMED_A,
+         lang_doc = LANGDOC_A,
+         lang_soc = LANGSOC_A,
+         race = HISPALLP_A,
+         age = AGEP_A,
+         hearing = HEARAID_A,
+         dementia = DEMENEV_A,
+         fatigue = CFSEV_A,
+         anxiety = ANXEV_A,
+         sex = SEX_A)
 ```
 
 ## Results {#sec-results}
 
 Describe your results and include relevant tables, plots, and code/comments used to obtain them. You may refer to the @sec-methods as needed. End with a brief conclusion of your findings related to the question you set out to address. You can include references if you'd like, but this is not required.
+
+
+
 
 ## Conclusion
 
