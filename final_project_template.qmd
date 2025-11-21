@@ -94,11 +94,11 @@ table(adult2023$PAIWKLM3M_A)
 
 ## create pain binary variable for outcome
 adult2023 <- adult2023 |>
-  mutate(pain_binary = ifelse(adult2023$PAIWKLM3M_A == "Never" | adult2023$PAIWKLM3M_A == "Some", 0, 1))
+  mutate(hip_binary = ifelse(adult2023$PAIWKLM3M_A == "Never" | adult2023$PAIWKLM3M_A == "Some", 0, 1))
 
 ## examine outcome for sample size
-table(adult2023$pain_binary)
-prop.table(table(adult2023$COMDIFF_A,adult2023$pain_binary),2)
+table(adult2023$hip_binary)
+prop.table(table(adult2023$COMDIFF_A,adult2023$hip_binary),2)
 ```
 
 
@@ -106,6 +106,7 @@ Examine sampling
 ```{r}
 ## rename variables of interest
 data <- adult2023 %>% 
+  as.data.frame() %>% 
   rename(id = HHX,
          strata = PSTRAT,
          sweight = WTFA_A,
@@ -114,9 +115,9 @@ data <- adult2023 %>%
          pain = PAIFRQ3M_A,
          hip = PAIWKLM3M_A)  %>% 
   filter(!is.na(comdiff))
-
 data <- data %>% 
-  mutate(hip = ifelse(pain == 1, 1, hip))
+  mutate(hip = ifelse(pain == 1, 1, hip)) %>%
+  mutate(hip_binary = ifelse(pain == 1, 0, hip_binary))
 weighted_data_test <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
@@ -131,6 +132,7 @@ svytable(~comdiff+pain_binary, weighted_data_test)
 
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
+## isolate variables i want to work with
 data <- data %>% 
   rename(lang_other = LANGHM_A,
          lang_tv = LANGMED_A,
@@ -142,8 +144,43 @@ data <- data %>%
          dementia = DEMENEV_A,
          fatigue = CFSEV_A,
          anxiety = ANXEV_A,
-         sex = SEX_A)
+         sex = SEX_A) %>% 
+  select(id,strata,sweight,psu,comdiff,pain,hip,pain_binary,
+         lang_other,lang_tv,lang_doc,lang_soc,race,age,
+         hearing,dementia,fatigue,anxiety,sex)
+
+cols <- c(6,9:12,15:19)
+data[data[, cols] > 7, cols] <- NA
+data[,10:12] <- sapply(data[,10:12], factor,
+                       levels = c(1,2,7,8,9),
+                       labels = c("English", "Other language",
+                                  "Refused", "Not Ascertained",
+                                  "DK"))
+data[,6:7] <- sapply(data[,6:7], factor,
+                       levels = c(1:4,7:9),
+                       labels = c("Never", "Some", "Most", "Every",
+                                  "Refused", "Not Ascertained",
+                                  "DK"))
+                                
+data <- data %>% 
+  mutate(id = factor(lang),
+         hip_binary =
+         lang_other = factor(lang_other,
+                             levels = c(1,2,7,8,9),
+                             labels = c("Yes","No","Refused",
+                                        "Not Ascertained","DK"))
+         
+         
+prop.table(table(data$lang_other, useNA = "always")) ## fairly high level of missingness
+## maybe do stratification as a sub-analysis
 ```
+
+```{r}
+weighted_data <-svydesign(id=~psu, weights=~sweight,
+                          strata=~strata, nest=TRUE,
+                          data = data)
+```
+
 
 ## Results {#sec-results}
 
