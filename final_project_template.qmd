@@ -237,15 +237,26 @@ svyhist(~age, weighted_data, probability = FALSE)
 
 Run analysis
 ```{r}
+##need to figure out how i want to handle missingness
+
 ## base logistic regression
 logit1 <- (svyglm(hip_binary~comdiff, family=quasibinomial,
                   design=weighted_data, na.action = na.omit))
 summary(logit1)
 
-logit1 <- (svyglm(hip_binary~comdiff, family=quasibinomial,
+## add demographic confounders
+logit2 <- (svyglm(hip_binary~comdiff+sex+race+age, family=quasibinomial,
                   design=weighted_data, na.action = na.omit))
-summary(logit1)
+summary(logit2)
+
+## add comorbidity confounders
+logit3 <- (svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety,
+                  family=quasibinomial,
+                  design=weighted_data, na.action = na.omit))
+summary(logit3)
 ```
+
+
 
 ## Results {#sec-results}
 
