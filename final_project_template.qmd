@@ -143,13 +143,15 @@ svytable(~comdiff+hip, weighted_data_test)
 svytable(~comdiff+hip_binary, weighted_data_test)
 ```
 
-Confounders were identified a priori from the literature and discussed with Dr. Farrar. My hypothetical causal framework is depicted in a directed acyclic graph (DAG) below. Of my proposed confounders, 2 were not captured in the data--autism and stress. They cannot, thus, be controlled for the in the analysis. I used "use of a hearing aid" as a proxy for hearing loss. All conditions (stroke, dementia, fatigue, anxiety) are ever-diagnoses.
+Confounders and effect modifiers were identified a priori from the literature and discussed with Dr. Farrar. My hypothetical causal framework is depicted in a directed acyclic graph (DAG) below. Of my proposed confounders, 2 were not captured in the data--autism and stress. They cannot, thus, be controlled for the in the analysis. I used "use of a hearing aid" as a proxy for hearing loss. All conditions (stroke, dementia, fatigue, anxiety) are ever-diagnoses.
 
 > Identify confounders
 
 ```{r}
 knitr::include_graphics("dag_1122.png")
 ```
+
+> Due to a high level of missingness (~30%), I decided to stratify by primary language in a subanalysis instead of the entire analytic population.
 
 Finalize dataset before weighting
 
