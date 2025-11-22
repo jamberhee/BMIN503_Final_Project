@@ -139,6 +139,10 @@ svytable(~comdiff+hip, weighted_data_test)
 svytable(~comdiff+hip_binary, weighted_data_test)
 ```
 
+Identify confounders
+```{r}
+knitr::include_graphics("dag.png")
+```
 
 Finalize dataset before weighting
 ```{r}
@@ -234,6 +238,10 @@ svyhist(~age, weighted_data, probability = FALSE)
 Run analysis
 ```{r}
 ## base logistic regression
+logit1 <- (svyglm(hip_binary~comdiff, family=quasibinomial,
+                  design=weighted_data, na.action = na.omit))
+summary(logit1)
+
 logit1 <- (svyglm(hip_binary~comdiff, family=quasibinomial,
                   design=weighted_data, na.action = na.omit))
 summary(logit1)
