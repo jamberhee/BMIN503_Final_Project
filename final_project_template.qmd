@@ -80,9 +80,15 @@ length(unique(adult2023$HHX))
 
 ## change missing to NA
 ## convert comm difficulty variable to factor
-adult2023$COMDIFF_A <- ifelse(adult2023$COMDIFF_A > 4, NA, adult2023$COMDIFF_A)
-adult2023$COMDIFF_A <- factor(adult2023$COMDIFF_A,
-                              labels = c("None","Some","Lots","Complete"))
+## collapse lots + completely due to small cell size
+adult2023 <- adult2023 %>% 
+  mutate(COMDIFF_A = as.factor(case_when(adult2023$COMDIFF_A > 4 ~ NA,
+                               adult2023$COMDIFF_A == 4 |
+                                 adult2023$COMDIFF_A == 3 ~ "Lots or Completely",
+                               adult2023$COMDIFF_A == 2 ~ "Some",
+                               adult2023$COMDIFF_A == 1 ~ "None")))
+adult2023$COMDIFF_A <- factor(adult2023$COMDIFF_A, 
+                              levels = c("None","Some","Lots or Completely"))
 table(adult2023$COMDIFF_A,useNA = "always")
 
 ## change missing to NA
@@ -94,7 +100,8 @@ table(adult2023$PAIWKLM3M_A)
 
 ## create pain binary variable for outcome
 adult2023 <- adult2023 |>
-  mutate(hip_binary = ifelse(adult2023$PAIWKLM3M_A == "Never" | adult2023$PAIWKLM3M_A == "Some", 0, 1))
+  mutate(hip_binary = ifelse(adult2023$PAIWKLM3M_A == "Never" |
+                               adult2023$PAIWKLM3M_A == "Some", 0, 1))
 
 ## examine outcome for sample size
 table(adult2023$hip_binary)
@@ -105,9 +112,9 @@ prop.table(table(adult2023$COMDIFF_A,adult2023$hip_binary),2)
 Examine sampling
 ```{r}
 ## rename variables of interest
-## filter out those missing exposure
-## remove 7 participants
-## dim 29515 x 648
+## 7 participants missing exposure
+## cannot filter out individuals because
+### all of the strata need to be used in the calculation of the standard error
 data <- adult2023 %>% 
   as.data.frame() %>% 
   rename(id = HHX,
@@ -116,8 +123,7 @@ data <- adult2023 %>%
          psu = PPSU,
          comdiff = COMDIFF_A,
          pain = PAIFRQ3M_A,
-         hip = PAIWKLM3M_A)  %>% 
-  filter(!is.na(comdiff))
+         hip = PAIWKLM3M_A)
 
 ## if no pain, no hip also
 data <- data %>% 
@@ -138,9 +144,7 @@ Finalize dataset before weighting
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
 ## isolate variables i want to work with
-## filter out those missing outcome 
-## remove 932 (3% of total sample)
-## dim 28583 x 19
+## 932 (3% of total sample) missing outcome
 data <- data %>% 
   rename(lang_other = LANGHM_A,
          lang_tv = LANGMED_A,
@@ -155,20 +159,20 @@ data <- data %>%
          sex = SEX_A) %>% 
   select(id,strata,sweight,psu,comdiff,pain,hip,hip_binary,
          lang_other,lang_tv,lang_doc,lang_soc,race,age,
-         hearing,dementia,fatigue,anxiety,sex) %>% 
-  filter(!is.na(hip))
+         hearing,dementia,fatigue,anxiety,sex)
 
+summary(data)
+
+## make na values na
+cols <- c(6,9:12,15:19)
+data <- data %>% 
+  mutate(across(all_of(cols), ~ if_else(.x >= 7, NA_real_, .x))) %>% 
+  mutate(age = ifelse(age > 85, NA, age))
 
 ## convert pain var to factors
 data[,6:7] <- lapply(data[,6:7], factor,
                        levels = c(1:4),
                        labels = c("Never", "Some", "Most", "Every"))
-
-## make na values na
-cols <- c(9:12,15:19)
-data <- data %>% 
-  mutate(across(all_of(cols), ~ if_else(.x >= 7, NA_real_, .x))) %>% 
-  mutate(age = ifelse(age > 85, NA, age))
 
 ## convert language vars to factors
 data[,10:12] <- lapply(data[,10:12], factor,
@@ -201,8 +205,9 @@ data <- data %>%
 prop.table(table(data$lang_other, useNA = "always")) ## fairly high level of missingness
 ## maybe do stratification as a sub-analysis
 
+summary(data)
 
-save(data, file = "data.Rda")
+# save(data, file = "data.Rda")
 load("data.Rda")
 ```
 
@@ -224,6 +229,14 @@ svytable(~comdiff+hip_binary, weighted_data)
 svyhist(~age, weighted_data, probability = FALSE)
 
 
+```
+
+Run analysis
+```{r}
+## base logistic regression
+logit1 <- (svyglm(hip_binary~comdiff, family=quasibinomial,
+                  design=weighted_data, na.action = na.omit))
+summary(logit1)
 ```
 
 ## Results {#sec-results}
