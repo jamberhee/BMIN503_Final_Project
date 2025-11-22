@@ -141,7 +141,7 @@ svytable(~comdiff+hip_binary, weighted_data_test)
 
 Identify confounders
 ```{r}
-knitr::include_graphics("dag.png")
+knitr::include_graphics("dag_1122.png")
 ```
 
 Finalize dataset before weighting
@@ -160,15 +160,16 @@ data <- data %>%
          dementia = DEMENEV_A,
          fatigue = CFSEV_A,
          anxiety = ANXEV_A,
-         sex = SEX_A) %>% 
+         sex = SEX_A,
+         stroke = STREV_A) %>% 
   select(id,strata,sweight,psu,comdiff,pain,hip,hip_binary,
          lang_other,lang_tv,lang_doc,lang_soc,race,age,
-         hearing,dementia,fatigue,anxiety,sex)
+         hearing,dementia,fatigue,anxiety,sex,stroke)
 
 summary(data)
 
 ## make na values na
-cols <- c(6,9:12,15:19)
+cols <- c(6,9:12,15:20)
 data <- data %>% 
   mutate(across(all_of(cols), ~ if_else(.x >= 7, NA_real_, .x))) %>% 
   mutate(age = ifelse(age > 85, NA, age))
@@ -184,11 +185,11 @@ data[,10:12] <- lapply(data[,10:12], factor,
                        labels = c("English", "Other language"))
 
 ## convert y/n vars to factors
-data[,c(9,15:18)] <- lapply(data[,c(9,15:18)], factor,
+data[,c(9,15:18,20)] <- lapply(data[,c(9,15:18,20)], factor,
                        levels = c(1,2),
                        labels = c("Yes", "No"))
 
-data[,c(9,15:18)] <- lapply(data[,c(9,15:18)], relevel,
+data[,c(9,15:18,20)] <- lapply(data[,c(9,15:18,20)], relevel,
                             ref = "No")
 
 ## convert remaining vars to factors                    
@@ -250,10 +251,13 @@ logit2 <- (svyglm(hip_binary~comdiff+sex+race+age, family=quasibinomial,
 summary(logit2)
 
 ## add comorbidity confounders
-logit3 <- (svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety,
+logit3 <- (svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
                   family=quasibinomial,
                   design=weighted_data, na.action = na.omit))
 summary(logit3)
+
+summary(logit3)
+summary(logit4)
 ```
 
 
@@ -279,6 +283,8 @@ table1 <- table1(~ sex + age + race + comdiff + dementia +
                    hearing + fatigue + anxiety| hip_binary,
                  data=table1_data)
 table1 ## need to clean up + label. weighted vs numbers?
+
+sum(weights(weighted_data))
 ```
 
 
