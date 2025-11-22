@@ -281,7 +281,16 @@ table1 <- table1(~ sex + age + race + comdiff + dementia +
 table1 ## need to clean up + label. weighted vs numbers?
 ```
 
-~analysis still in progress~
+
+
+```{r}
+## main analysis output
+summary(logit3)
+
+results <- as.data.frame(coef(summary(logit3))[2:3,],keep.rownames = "outcome")
+results
+```
+
 
 
 ## Conclusion
