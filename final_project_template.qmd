@@ -28,26 +28,27 @@ Chronic pain is a major public health concern in the U.S., with high prevalence 
 
 References
 
-  1. Rikard SM, Strahan AE, Schmit KM, Guy GP Jr.. Chronic Pain Among Adults — United States, 2019–2021. MMWR Morb Mortal Wkly Rep 2023;72:379–385. DOI: http://dx.doi.org/10.15585/mmwr.mm7215a1
-  2. Sabater-Gárriz Á, Molina-Mula J, Montoya P, Riquelme I. Pain assessment tools in adults with communication disorders: systematic review and meta-analysis. BMC Neurol. 2024 Feb 17;24(1):66. doi: 10.1186/s12883-024-03539-w. PMID: 38368314; PMCID: PMC10873938.
-  3. Brown VL, James A, Hunleth J, Bradley CS, Farrar JT, Gupta P, Lai HH, Lowder JL, Moldwin R, Rodriguez LV, Yang CC, Sutcliffe S. Believing women: a qualitative exploration of provider disbelief and pain dismissal among women with interstitial cystitis/bladder pain syndrome from the MAPP research network. Int Urogynecol J. 2024 Jan;35(1):139-148. doi: 10.1007/s00192-023-05677-0. Epub 2023 Nov 22. PMID: 37991567; PMCID: PMC11019919.
-  4. Tosas, M.R. The downgrading of pain sufferers’ credibility. Philos Ethics Humanit Med 16, 8 (2021). https://doi.org/10.1186/s13010-021-00105-x
-  5. Nguyen LH, Dawson JE, Brooks M, Khan JS, Telusca N. Disparities in Pain Management. Anesthesiol Clin. 2023 Jun;41(2):471-488. doi: 10.1016/j.anclin.2023.03.008. PMID: 37245951.
+1.  Rikard SM, Strahan AE, Schmit KM, Guy GP Jr.. Chronic Pain Among Adults — United States, 2019–2021. MMWR Morb Mortal Wkly Rep 2023;72:379–385. DOI: http://dx.doi.org/10.15585/mmwr.mm7215a1
+2.  Sabater-Gárriz Á, Molina-Mula J, Montoya P, Riquelme I. Pain assessment tools in adults with communication disorders: systematic review and meta-analysis. BMC Neurol. 2024 Feb 17;24(1):66. doi: 10.1186/s12883-024-03539-w. PMID: 38368314; PMCID: PMC10873938.
+3.  Brown VL, James A, Hunleth J, Bradley CS, Farrar JT, Gupta P, Lai HH, Lowder JL, Moldwin R, Rodriguez LV, Yang CC, Sutcliffe S. Believing women: a qualitative exploration of provider disbelief and pain dismissal among women with interstitial cystitis/bladder pain syndrome from the MAPP research network. Int Urogynecol J. 2024 Jan;35(1):139-148. doi: 10.1007/s00192-023-05677-0. Epub 2023 Nov 22. PMID: 37991567; PMCID: PMC11019919.
+4.  Tosas, M.R. The downgrading of pain sufferers’ credibility. Philos Ethics Humanit Med 16, 8 (2021). https://doi.org/10.1186/s13010-021-00105-x
+5.  Nguyen LH, Dawson JE, Brooks M, Khan JS, Telusca N. Disparities in Pain Management. Anesthesiol Clin. 2023 Jun;41(2):471-488. doi: 10.1016/j.anclin.2023.03.008. PMID: 37245951.
 
 Explain why your problem is interdisciplinary, what fields can contribute to its understanding, and incorporate background related to what you learned from meeting with faculty/staff.
 
-Pain is often defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[6\]. Attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and neurologist, (will continue to add as I meet him again). Dr. Adam Naj, (will continue to add as I meet him again). 
+Pain is often defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[6\]. Attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and neurologist, (will continue to add as I meet him again). Dr. Adam Naj, (will continue to add as I meet him again).
 
 References
 
-6. Meints SM, Edwards RR. Evaluating psychosocial contributions to chronic pain outcomes. Prog Neuropsychopharmacol Biol Psychiatry. 2018 Dec 20;87(Pt B):168-182. doi: 10.1016/j.pnpbp.2018.01.017. Epub 2018 Jan 31. PMID: 29408484; PMCID: PMC6067990.
+6.  Meints SM, Edwards RR. Evaluating psychosocial contributions to chronic pain outcomes. Prog Neuropsychopharmacol Biol Psychiatry. 2018 Dec 20;87(Pt B):168-182. doi: 10.1016/j.pnpbp.2018.01.017. Epub 2018 Jan 31. PMID: 29408484; PMCID: PMC6067990.
 
 ## Methods {#sec-methods}
 
 Describe the data used and general methodological approach used to address the problem described in the @sec-introduction. Subsequently, incorporate full R code necessary to retrieve and clean data, and perform analysis. Be sure to include a description of code so that others (including your future self) can understand what you are doing and why.
 
+I used "Sample Adult" data from the 2023 National Health Interview Survey (NHIS). Estimates from the NHIS are designed to be representative of the noninstitutionalized civilian population of the U.S.
 
-Install and load libraries
+> Install and load libraries
 
 ```{r}
 # install.packages("tidyverse)
@@ -59,8 +60,7 @@ library(dagitty)
 library(table1)
 ```
 
-
-Load data
+> Load data
 
 ```{r}
 ## loaded according to recommended/provided code from NHIS
@@ -71,8 +71,12 @@ adult2023 <- read_csv("adult23.csv", guess_max = 29522)
 
 ```
 
+Communication difficulty was determined by the question, "Using your usual language, do you have difficulty communicating, for example, understanding or being understood?" Participants could respond, "No difficulty", "Some difficulty", "A lot of difficulty", or "Cannot do at all." Due to small sample size, I collapsed the "A lot of difficulty" and "Cannot do at all" participants into a single group.
 
-Initial inspection of data
+Participants were asked, "In the past three months, how often did you have pain?", to which they could answer, "Never," "Some days," "Most days," or "Every day." Only those who reported any pain to this question were asked the follow question: "Over the past three months, how often did your pain limit your life or work?" High impact pain was defined as pain that limited life or work "Most days" or "Every day." Participants who responded "Never" or "Some days" or reported no pain in the last three months were classified as individuals without high impact pain.
+
+> Initial inspection of data for sample size
+
 ```{r}
 ## check unique adults in dataset
 ### 29522 adults--one row per participant
@@ -108,8 +112,8 @@ table(adult2023$hip_binary)
 prop.table(table(adult2023$COMDIFF_A,adult2023$hip_binary),2)
 ```
 
+> Examine sampling
 
-Examine sampling
 ```{r}
 ## rename variables of interest
 ## 7 participants missing exposure
@@ -139,12 +143,14 @@ svytable(~comdiff+hip, weighted_data_test)
 svytable(~comdiff+hip_binary, weighted_data_test)
 ```
 
-Identify confounders
+> Identify confounders
+
 ```{r}
 knitr::include_graphics("dag_1122.png")
 ```
 
 Finalize dataset before weighting
+
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
 ## isolate variables i want to work with
@@ -216,8 +222,8 @@ summary(data)
 load("data.Rda")
 ```
 
-
 Apply weighting
+
 ```{r}
 weighted_data <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
@@ -226,8 +232,8 @@ weighted_data <-svydesign(id=~psu, weights=~sweight,
 rm(weighted_data_test)
 ```
 
-
 Inspection of weighted data
+
 ```{r}
 svytable(~comdiff+hip_binary, weighted_data)
 
@@ -237,6 +243,7 @@ svyhist(~age, weighted_data, probability = FALSE)
 ```
 
 Run analysis
+
 ```{r}
 ##need to figure out how i want to handle missingness
 
@@ -260,14 +267,14 @@ summary(logit3)
 summary(logit4)
 ```
 
-
-
 ## Results {#sec-results}
 
 Describe your results and include relevant tables, plots, and code/comments used to obtain them. You may refer to the @sec-methods as needed. End with a brief conclusion of your findings related to the question you set out to address. You can include references if you'd like, but this is not required.
 
 # Study Population
-Table 1 shows selected characteristics of the U.S. adults examined in our analysis. 
+
+Table 1 shows selected characteristics of the U.S. adults examined in our analysis.
+
 ```{r}
 table1_data <- data
 label(table1_data$sex) <- "Sex"
@@ -287,8 +294,6 @@ table1 ## need to clean up + label. weighted vs numbers?
 sum(weights(weighted_data))
 ```
 
-
-
 ```{r}
 ## main analysis output
 summary(logit3)
@@ -296,8 +301,6 @@ summary(logit3)
 results <- as.data.frame(coef(summary(logit3))[2:3,],keep.rownames = "outcome")
 results
 ```
-
-
 
 ## Conclusion
 
