@@ -56,6 +56,7 @@ Install and load libraries
 library(tidyverse)
 library(survey)
 library(dagitty)
+library(table1)
 ```
 
 
@@ -72,7 +73,6 @@ adult2023 <- read_csv("adult23.csv", guess_max = 29522)
 
 
 Initial inspection of data
-
 ```{r}
 ## check unique adults in dataset
 ### 29522 adults--one row per participant
@@ -83,7 +83,7 @@ length(unique(adult2023$HHX))
 adult2023$COMDIFF_A <- ifelse(adult2023$COMDIFF_A > 4, NA, adult2023$COMDIFF_A)
 adult2023$COMDIFF_A <- factor(adult2023$COMDIFF_A,
                               labels = c("None","Some","Lots","Complete"))
-table(adult2023$COMDIFF_A)
+table(adult2023$COMDIFF_A,useNA = "always")
 
 ## change missing to NA
 ## convert high impact pain variable to factor
@@ -105,6 +105,9 @@ prop.table(table(adult2023$COMDIFF_A,adult2023$hip_binary),2)
 Examine sampling
 ```{r}
 ## rename variables of interest
+## filter out those missing exposure
+## remove 7 participants
+## dim 29515 x 648
 data <- adult2023 %>% 
   as.data.frame() %>% 
   rename(id = HHX,
@@ -115,6 +118,8 @@ data <- adult2023 %>%
          pain = PAIFRQ3M_A,
          hip = PAIWKLM3M_A)  %>% 
   filter(!is.na(comdiff))
+
+## if no pain, no hip also
 data <- data %>% 
   mutate(hip = ifelse(pain == 1, 1, hip)) %>%
   mutate(hip_binary = ifelse(pain == 1, 0, hip_binary))
@@ -125,14 +130,17 @@ weighted_data_test <-svydesign(id=~psu, weights=~sweight,
 summary(weighted_data_test)
 
 svytable(~comdiff+hip, weighted_data_test)
-svytable(~comdiff+pain_binary, weighted_data_test)
+svytable(~comdiff+hip_binary, weighted_data_test)
 ```
 
 
-
+Finalize dataset before weighting
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
 ## isolate variables i want to work with
+## filter out those missing outcome 
+## remove 932 (3% of total sample)
+## dim 28583 x 19
 data <- data %>% 
   rename(lang_other = LANGHM_A,
          lang_tv = LANGMED_A,
@@ -145,46 +153,101 @@ data <- data %>%
          fatigue = CFSEV_A,
          anxiety = ANXEV_A,
          sex = SEX_A) %>% 
-  select(id,strata,sweight,psu,comdiff,pain,hip,pain_binary,
+  select(id,strata,sweight,psu,comdiff,pain,hip,hip_binary,
          lang_other,lang_tv,lang_doc,lang_soc,race,age,
-         hearing,dementia,fatigue,anxiety,sex)
+         hearing,dementia,fatigue,anxiety,sex) %>% 
+  filter(!is.na(hip))
 
-cols <- c(6,9:12,15:19)
-data[data[, cols] > 7, cols] <- NA
-data[,10:12] <- sapply(data[,10:12], factor,
-                       levels = c(1,2,7,8,9),
-                       labels = c("English", "Other language",
-                                  "Refused", "Not Ascertained",
-                                  "DK"))
-data[,6:7] <- sapply(data[,6:7], factor,
-                       levels = c(1:4,7:9),
-                       labels = c("Never", "Some", "Most", "Every",
-                                  "Refused", "Not Ascertained",
-                                  "DK"))
-                                
+
+## convert pain var to factors
+data[,6:7] <- lapply(data[,6:7], factor,
+                       levels = c(1:4),
+                       labels = c("Never", "Some", "Most", "Every"))
+
+## make na values na
+cols <- c(9:12,15:19)
 data <- data %>% 
-  mutate(id = factor(lang),
-         hip_binary =
-         lang_other = factor(lang_other,
-                             levels = c(1,2,7,8,9),
-                             labels = c("Yes","No","Refused",
-                                        "Not Ascertained","DK"))
-         
+  mutate(across(all_of(cols), ~ if_else(.x >= 7, NA_real_, .x))) %>% 
+  mutate(age = ifelse(age > 85, NA, age))
+
+## convert language vars to factors
+data[,10:12] <- lapply(data[,10:12], factor,
+                       levels = c(1,2),
+                       labels = c("English", "Other language"))
+
+## convert y/n vars to factors
+data[,c(9,15:18)] <- lapply(data[,c(9,15:18)], factor,
+                       levels = c(1,2),
+                       labels = c("Yes", "No"))
+
+data[,c(9,15:18)] <- lapply(data[,c(9,15:18)], relevel,
+                            ref = "No")
+
+## convert remaining vars to factors                    
+data <- data %>% 
+  mutate(id = factor(id),
+         hip_binary = factor(hip_binary,
+                             levels = c(0,1),
+                             labels = c("No","Yes")),
+         race = factor(race,
+                       levels = c(1:7),
+                       labels = c("Hispanic","NH White","NH Black",
+                                  "NH Asian", "NH AIAN only", "NH AIAN and other",
+                                  "Other/Multi")),
+         sex = factor(sex,
+                      levels = c(1,2),
+                      labels = c("Male","Female")))
          
 prop.table(table(data$lang_other, useNA = "always")) ## fairly high level of missingness
 ## maybe do stratification as a sub-analysis
+
+
+save(data, file = "data.Rda")
+load("data.Rda")
 ```
 
+
+Apply weighting
 ```{r}
 weighted_data <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
+
+rm(weighted_data_test)
 ```
 
+
+Inspection of weighted data
+```{r}
+svytable(~comdiff+hip_binary, weighted_data)
+
+svyhist(~age, weighted_data, probability = FALSE)
+
+
+```
 
 ## Results {#sec-results}
 
 Describe your results and include relevant tables, plots, and code/comments used to obtain them. You may refer to the @sec-methods as needed. End with a brief conclusion of your findings related to the question you set out to address. You can include references if you'd like, but this is not required.
+
+# Study Population
+Table 1 shows selected characteristics of the U.S. adults examined in our analysis. 
+```{r}
+table1_data <- data
+label(table1_data$sex) <- "Sex"
+label(table1_data$hip_binary) <- "High Impact Pain"
+label(table1_data$race) <- "Race and Ethnicity"
+label(table1_data$age) <- "Age"
+label(table1_data$comdiff) <- "Difficulty Communicating"
+label(table1_data$dementia) <- "Dementia"
+label(table1_data$hearing) <- "Hearing"
+label(table1_data$fatigue) <- "Fatigue"
+label(table1_data$anxiety) <- "Anxiety"
+table1 <- table1(~ sex + age + race + comdiff + dementia +
+                   hearing + fatigue + anxiety| hip_binary,
+                 data=table1_data)
+table1 ## need to clean up + label. weighted vs numbers?
+```
 
 ~analysis still in progress~
 
