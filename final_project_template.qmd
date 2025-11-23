@@ -152,9 +152,9 @@ Confounders and effect modifiers were identified a priori from the literature an
 knitr::include_graphics("dag_1122.png")
 ```
 
-> Due to a high level of missingness (~30%), I decided to stratify by primary language in a subanalysis instead of the entire analytic population.
+Due to a high level of missingness (~30%), I decided to stratify by primary language in a subanalysis instead of the entire analytic population.
 
-Finalize dataset before weighting
+> Finalize dataset before weighting
 
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
@@ -234,28 +234,40 @@ summary(data)
 load("data.Rda")
 ```
 
-Apply weighting
+Data was weighted using the R package survey 4.4-8 according to the weights provided by the NHIS dataset. Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. They remain included for the calculation of the standard errors.
+
+> Apply weighting, subsetting.
 
 ```{r}
+## apply weights
 weighted_data <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
+
+## subset data to only include participants with exposure and outcome data
+weighted_complete <- subset(weighted_data,complete.cases(comdiff,hip_binary))
+
+## representative of 258237552 individuals to 249862610 individuals weighted
+sum(weights(weighted_data))
+sum(weights(weighted_complete))
 
 ## remove test to clear up environment
 rm(weighted_data_test)
 ```
 
-Inspection of weighted data
+> Inspection of weighted data
 
 ```{r}
 ## look at exposure x outcome
-svytable(~comdiff+hip_binary, weighted_data)
+svytable(~comdiff+hip_binary, weighted_complete)
 
 ## distribution of continuous var
-svyhist(~age, weighted_data, probability = FALSE)
+svyhist(~age, weighted_complete, probability = FALSE)
 ```
 
-Run analysis
+I conducted a logistic regression of communication difficulty on high impact pain, adjusted for sex, race/ethnicity, age (continuous), hearing loss, dementia, fatigue, anxiety, and stroke. All confounders were included as factors, unless otherwise specified.
+
+> Run analysis
 
 ```{r}
 ##need to figure out how i want to handle missingness
@@ -275,9 +287,27 @@ logit3 <- (svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxie
                   family=quasibinomial,
                   design=weighted_data, na.action = na.omit))
 summary(logit3)
+```
 
-summary(logit3)
-summary(logit4)
+As a subanalysis,
+
+> Run subanalysis
+
+```{r}
+ini  <- mice(data, maxit=0)
+pred <- ini$pred
+
+# Don’t let the outcome predict its own imputation model
+pred["outcome", "outcome"] <- 0
+
+# Often: don't let outcome predict exposure in a causal model
+pred["exposure", "outcome"] <- 0
+
+imp <- mice(data, pred=pred, m=20)
+
+fits <- with(imp, svyglm(Y ~ X + covariates, design = survey_design))
+summary(pool(fits))
+
 ```
 
 ## Results {#sec-results}
