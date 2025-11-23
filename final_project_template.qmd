@@ -58,6 +58,7 @@ library(tidyverse)
 library(survey)
 library(dagitty)
 library(table1)
+library(corrplot)
 ```
 
 > Load data
@@ -184,6 +185,13 @@ data <- data %>%
   mutate(across(all_of(cols), ~ if_else(.x >= 7, NA_real_, .x))) %>% 
   mutate(age = ifelse(age > 85, NA, age))
 
+## check for correlation between conditions
+vars <- data[, c(15:18,20)]
+vars01 <- as.tibble(ifelse(vars == 2, 1, 0))
+cor_mat <- cor(vars01,use = "pairwise.complete.obs")
+corrplot(cor_mat, method = "color",
+         type = "upper", tl.col = "black", tl.cex = 0.7)
+
 ## convert pain var to factors
 data[,6:7] <- lapply(data[,6:7], factor,
                        levels = c(1:4),
@@ -233,17 +241,18 @@ weighted_data <-svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
 
+## remove test to clear up environment
 rm(weighted_data_test)
 ```
 
 Inspection of weighted data
 
 ```{r}
+## look at exposure x outcome
 svytable(~comdiff+hip_binary, weighted_data)
 
+## distribution of continuous var
 svyhist(~age, weighted_data, probability = FALSE)
-
-
 ```
 
 Run analysis
