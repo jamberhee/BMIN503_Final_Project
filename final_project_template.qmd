@@ -241,6 +241,9 @@ For all covariate variables, missing values were imputed using multiple imputati
 > MICE
 
 ```{r}
+## remove test to clear up environment
+rm(weighted_data_test)
+
 ## prepare for multiple imputation followed by deletion of imputed outcomes
 data_main <- data %>% 
   select(-c(6:7,9:12))
@@ -249,14 +252,15 @@ data_main <- data %>%
 md.pattern(data_main)
 
 ## run imputation, 5 iterations
-# imp <- mice(data_main, print=F, maxit = 5, seed = 1234)
+imp <- mice(data_main, print=F, maxit = 5, seed = 1234)
 
 ## imputation = very computationally intensive so comment out
 # save(imp, file="imp.Rda")
-# load("imp.Rda")
+load("imp.Rda")
 
 # check for convergence
 plot(imp)
+summary(imp)
 ```
 
 Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. They remain included for the calculation of the standard errors. Imputed datasets were weighted using the R package survey 4.4-8 according to the weights provided by the NHIS dataset. 
@@ -280,7 +284,9 @@ data.list
 
 
 require(survey)
-fit.list <- vector("list", 5)
+fit.list1 <- vector("list", 5)
+fit.list2 <- vector("list", 5)
+fit.list3 <- vector("list", 5)
 for (i in 1:5) {
   analytic.i <- data.list[[i]]
   # assigning survey features = 1
@@ -288,33 +294,37 @@ for (i in 1:5) {
                           strata=~strata, nest=TRUE,
                           data = analytic.i)
   weighted_complete <- subset(weighted_data, miss == 0)
-  fit <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
+  fit1 <- svyglm(hip_binary~comdiff,
                   family=quasibinomial,
                   design=weighted_complete, na.action = na.omit)
-  fit.list[[i]] <-  fit
+  fit.list1[[i]] <-  fit1
+  fit2 <- svyglm(hip_binary~comdiff+sex+race+age,
+                  family=quasibinomial,
+                  design=weighted_complete, na.action = na.omit)
+  fit.list2[[i]] <-  fit2
+  fit3 <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
+                  family=quasibinomial,
+                  design=weighted_complete, na.action = na.omit)
+  fit.list3[[i]] <-  fit3
 }
 
 
 require(mitools)
-pooled.estimates <- MIcombine(fit.list)
+fit.list <- list(fit.list1,fit.list2,fit.list3)
+pooled.estimates <- lapply(fit.list,MIcombine)
 pooled.estimates
 
-View(summary(pooled.estimates, logeffect=T))
+lapply(pooled.estimates, summary, logeffect=T)
 
+summary(pooled.estimates[[3]], logeffect=T) %>% View()
 ## apply weights
-weighted_data <-svydesign(id=~psu, weights=~sweight,
-                          strata=~strata, nest=TRUE,
-                          data = data)
 
 ## subset data to only include participants with exposure and outcome data
-weighted_complete <- subset(weighted_data,complete.cases(comdiff,hip_binary))
 
 ## representative of 258237552 individuals to 249862610 individuals weighted
 sum(weights(weighted_data))
 sum(weights(weighted_complete))
 
-## remove test to clear up environment
-rm(weighted_data_test)
 ```
 
 > Inspection of weighted data
