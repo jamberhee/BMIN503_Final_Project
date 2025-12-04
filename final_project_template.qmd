@@ -199,9 +199,19 @@ data[,6:7] <- lapply(data[,6:7], factor,
                        levels = c(1:4),
                        labels = c("Never", "Some", "Most", "Every"))
 
+## identify those reporting any other language as primary
+data <- data %>% 
+  mutate(across(lang_tv:lang_soc, ~ as.factor(case_when(.x == 1 ~ "English",
+                                              is.na(.x) ~ "Missing",
+                                              .x == 2 ~ "Other language"))),
+         otherlang_any = as.factor(case_when(if_any(lang_tv:lang_soc, ~ .x == "Other language") ~ "Yes",
+                                   if_any(lang_tv:lang_soc, ~ .x == "English") ~ "No",
+                                   TRUE ~ NA)),
+         across(lang_tv:lang_soc, ~ ifelse(.x == "Missing", NA, .x)))
+
 ## convert language vars to factors
 data[,10:12] <- lapply(data[,10:12], factor,
-                       levels = c(1,2),
+                       levels = c(1,3),
                        labels = c("English", "Other language"))
 
 ## convert y/n vars to factors
@@ -226,14 +236,19 @@ data <- data %>%
          sex = factor(sex,
                       levels = c(1,2),
                       labels = c("Male","Female")))
-         
-prop.table(table(data$lang_other, useNA = "always")) ## fairly high level of missingness
-## maybe do stratification as a sub-analysis
+
+## create variable for whether otherlang matches with lang_doc
+data <- data %>% 
+  mutate(lang_match = as.factor(case_when(lang_doc == "English" & otherlang_any == "No" ~ "Match",
+                                          lang_doc == "Other language" & otherlang_any == "Yes" ~ "Match",
+                                          lang_doc == "English" & otherlang_any == "Yes" ~ "No match",
+                                          lang_doc == "Other language" & otherlang_any == "No" ~ "No match",
+                                          TRUE ~ NA)))
 
 summary(data)
 
 # save(data, file = "data.Rda")
-load("data.Rda")
+# load("data.Rda")
 ```
 
 For all covariate variables, missing values were imputed using multiple imputation by chained equations (MICE).
