@@ -56,7 +56,6 @@ I used "Sample Adult" data from the 2023 National Health Interview Survey (NHIS)
 
 library(tidyverse)
 library(survey)
-library(dagitty)
 library(table1)
 library(corrplot)
 library(mice)
@@ -248,7 +247,7 @@ data <- data %>%
 summary(data)
 
 # save(data, file = "data.Rda")
-# load("data.Rda")
+load("data.Rda")
 ```
 
 For all covariate variables, missing values were imputed using multiple imputation by chained equations (MICE).
@@ -260,14 +259,21 @@ For all covariate variables, missing values were imputed using multiple imputati
 rm(weighted_data_test)
 
 ## prepare for multiple imputation followed by deletion of imputed outcomes
-data_main <- data %>% 
-  select(-c(6:7,9:12))
+data_main <- data %>%
+  select(-c(6:7,9:12,21))
 
 ## check missingness pattern
 md.pattern(data_main)
 
+## remove lang from imputation
+init = mice(data_main, maxit = 0)
+meth = init$method
+
+meth[c("lang_match")] = ""
+
+
 ## run imputation, 5 iterations
-imp <- mice(data_main, print=F, maxit = 5, seed = 1234)
+imp <- mice(data_main, method=meth, maxit = 5, seed = 1234)
 
 ## imputation = very computationally intensive so comment out
 # save(imp, file="imp.Rda")
@@ -331,6 +337,7 @@ pooled.estimates
 
 lapply(pooled.estimates, summary, logeffect=T)
 
+exp(summary(fit.list3[[1]])$coef)
 summary(pooled.estimates[[3]], logeffect=T) %>% View()
 ## apply weights
 
@@ -340,62 +347,93 @@ summary(pooled.estimates[[3]], logeffect=T) %>% View()
 sum(weights(weighted_data))
 sum(weights(weighted_complete))
 
+## total number of individuals examined
+length(unique(subset(data,complete.cases(comdiff,hip_binary))$id))
+
 ```
 
-> Inspection of weighted data
-
-```{r}
-## look at exposure x outcome
-svytable(~comdiff+hip_binary, weighted_complete)
-
-## distribution of continuous var
-svyhist(~age, weighted_complete, probability = FALSE)
-```
 
 I conducted a logistic regression of communication difficulty on high impact pain, adjusted for sex, race/ethnicity, age (continuous), hearing loss, dementia, fatigue, anxiety, and stroke. All confounders were included as factors, unless otherwise specified.
 
-> Run analysis
-
-```{r}
-##need to figure out how i want to handle missingness
-
-## base logistic regression
-logit1 <- (svyglm(hip_binary~comdiff, family=quasibinomial,
-                  design=weighted_complete, na.action = na.omit))
-summary(logit1)
-
-## add demographic confounders
-logit2 <- (svyglm(hip_binary~comdiff+sex+race+age, family=quasibinomial,
-                  design=weighted_complete, na.action = na.omit))
-summary(logit2)
-
-## add comorbidity confounders
-logit3 <- (svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
-                  family=quasibinomial,
-                  design=weighted_complete, na.action = na.omit))
-summary(logit3)
-```
 
 As a subanalysis,
 
-> Run subanalysis
-
+Try without MICE
 ```{r}
-ini  <- mice(data, maxit=0)
-pred <- ini$pred
+weighted_data <- svydesign(id=~psu, weights=~sweight,
+                          strata=~strata, nest=TRUE,
+                          data = data)
+sum(weights(weighted_data))
+weighted_sub <- survey::subset(weighted_data, complete.cases(comdiff,hip_binary,sex,
+                                                     race,age,hearing,dementia,
+                                                     fatigue,anxiety,stroke))
+sum(weights(weighted_sub))
 
-# Don’t let the outcome predict its own imputation model
-pred["outcome", "outcome"] <- 0
+  fit1_sub <- svyglm(hip_binary~comdiff,
+                  family=quasibinomial,
+                  design=weighted_sub, na.action = na.omit)
+  fit2_sub <- svyglm(hip_binary~comdiff+sex+race+age,
+                  family=quasibinomial,
+                  design=weighted_sub, na.action = na.omit)
+  fit3_sub <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
+                  family=quasibinomial,
+                  design=weighted_sub, na.action = na.omit)
 
-# Often: don't let outcome predict exposure in a causal model
-pred["exposure", "outcome"] <- 0
+summary(fit1_sub,logeffect=T)
+summary(fit2_sub,logeffect=T)
+exp(summary(fit3_sub)$coef)
+test <- as_tibble(summary(fit3_sub)$coef) %>% 
+  mutate(or = exp(Estimate),
+         lower.CI = exp(Estimate - 1.96*`Std. Error`),
+         upper.CI = exp(Estimate + 1.96*`Std. Error`))
 
-imp <- mice(data, pred=pred, m=20)
+## check
+svymean(~age,weighted_sub)
+svyby(~age,~I(complete.cases(comdiff,hip_binary,sex,
+                                                     race,age,hearing,dementia,
+                                                     fatigue,anxiety,stroke)),weighted_data,svymean)
 
-fits <- with(imp, svyglm(Y ~ X + covariates, design = survey_design))
-summary(pool(fits))
+
+weighted_sub2 <- subset(weighted_data, complete.cases(comdiff,hip_binary,sex,
+                                                     race,age,hearing,dementia,
+                                                     fatigue,anxiety,stroke,lang_match))
+sum(weights(weighted_sub2))
+dim(subset(data, complete.cases(comdiff,hip_binary,sex,
+                                race,age,hearing,dementia,
+                                fatigue,anxiety,stroke,lang_match)))
+weighted_sub_match <- subset(weighted_sub2, lang_match == "Match")
+weighted_sub_nomatch <- subset(weighted_sub2, lang_match == "No match")
+
+## check
+svymean(~age,weighted_sub_match)
+svyby(~age,~I(lang_match == "Match"),weighted_sub2,svymean)
+svymean(~age,weighted_sub_nomatch)
+svyby(~age,~I(lang_match == "No match"),weighted_sub2,svymean)
+
+fit3_sub_match <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
+                         family=quasibinomial,
+                         design=weighted_sub_match, na.action = na.omit)
+fit3_sub_nomatch <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
+                         family=quasibinomial,
+                         design=weighted_sub_nomatch, na.action = na.omit)
+
+summary(fit3_sub_match)
+summary(fit3_sub_nomatch)
+
+test_match <- as_tibble(summary(fit3_sub_match)$coef) %>% 
+  mutate(or = exp(Estimate),
+         lower.CI = exp(Estimate - 1.96*`Std. Error`),
+         upper.CI = exp(Estimate + 1.96*`Std. Error`))
+test_nomatch <- as_tibble(summary(fit3_sub_nomatch)$coef) %>% 
+  mutate(or = exp(Estimate),
+         lower.CI = exp(Estimate - 1.96*`Std. Error`),
+         upper.CI = exp(Estimate + 1.96*`Std. Error`))
+
+prop.table(svytable(~comdiff, weighted_sub))
 
 ```
+
+
 
 ## Results {#sec-results}
 
