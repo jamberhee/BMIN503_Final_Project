@@ -24,19 +24,25 @@ For my final project, I am using data from the 2023 NHIS's (Sample Adult) commun
 
 Describe the problem addressed, its significance, and some background to motivate the problem. This should extend what is in the @sec-overview.
 
-Chronic pain is a major public health concern in the U.S., with high prevalence across sociodemographic groups \[1\]. As a subjective experience, proper communication of pain and relevant symptoms from patient to healthcare provider and belief of patient-report by providers are essential for adequate management \[2-4\]. Consequently, disparities in pain management are significant \[5\].
+Chronic pain is a major public health concern in the U.S., with high prevalence across sociodemographic groups \[1\]. The incidence of chronic pain cases is reported greater than the incidence of diabetes, depression, and hypertension \[2\] And disparities in pain management are significant \[3\].
+
+The official definition of pain acknowledges pain as a subjective experience, where an individual's report of pain is to be respected \[4\]. It also notes, "inability to communicate does not negate the possibility that a human […] experiences pain" \[4\].
+
+Communication requires both a patient to properly express their symptoms and a healthcare provider to listen and understand. Verbal communication is considered the "gold standard" for pain assessment \[5\]. A review found that a major reason for provider dismissal and downgrading of patient credibility regarding their pain was due to ineffective pain communication by the patient \[5\]. Additional qualitative research has found healthcare providers view pain assessment in individuals with communication difficulties to be challenging and time-consuming \[6\]. And yet, disparities in pain in relation to communication difficulties are not well documented or quantified.
 
 References
 
 1.  Rikard SM, Strahan AE, Schmit KM, Guy GP Jr.. Chronic Pain Among Adults — United States, 2019–2021. MMWR Morb Mortal Wkly Rep 2023;72:379–385. DOI: http://dx.doi.org/10.15585/mmwr.mm7215a1
-2.  Sabater-Gárriz Á, Molina-Mula J, Montoya P, Riquelme I. Pain assessment tools in adults with communication disorders: systematic review and meta-analysis. BMC Neurol. 2024 Feb 17;24(1):66. doi: 10.1186/s12883-024-03539-w. PMID: 38368314; PMCID: PMC10873938.
-3.  Brown VL, James A, Hunleth J, Bradley CS, Farrar JT, Gupta P, Lai HH, Lowder JL, Moldwin R, Rodriguez LV, Yang CC, Sutcliffe S. Believing women: a qualitative exploration of provider disbelief and pain dismissal among women with interstitial cystitis/bladder pain syndrome from the MAPP research network. Int Urogynecol J. 2024 Jan;35(1):139-148. doi: 10.1007/s00192-023-05677-0. Epub 2023 Nov 22. PMID: 37991567; PMCID: PMC11019919.
-4.  Tosas, M.R. The downgrading of pain sufferers’ credibility. Philos Ethics Humanit Med 16, 8 (2021). https://doi.org/10.1186/s13010-021-00105-x
-5.  Nguyen LH, Dawson JE, Brooks M, Khan JS, Telusca N. Disparities in Pain Management. Anesthesiol Clin. 2023 Jun;41(2):471-488. doi: 10.1016/j.anclin.2023.03.008. PMID: 37245951.
+2. Nahin RL, Feinberg T, Kapos FP, Terman GW. Estimated Rates of Incident and Persistent Chronic Pain Among US Adults, 2019-2020. JAMA Netw Open. 2023 May 1;6(5):e2313563. doi: 10.1001/jamanetworkopen.2023.13563. PMID: 37191961; PMCID: PMC10189566.
+3.  Nguyen LH, Dawson JE, Brooks M, Khan JS, Telusca N. Disparities in Pain Management. Anesthesiol Clin. 2023 Jun;41(2):471-488. doi: 10.1016/j.anclin.2023.03.008. PMID: 37245951.
+4. Raja SN, Carr DB, Cohen M, Finnerup NB, Flor H, Gibson S, Keefe FJ, Mogil JS, Ringkamp M, Sluka KA, Song XJ, Stevens B, Sullivan MD, Tutelman PR, Ushida T, Vader K. The revised International Association for the Study of Pain definition of pain: concepts, challenges, and compromises. Pain. 2020 Sep 1;161(9):1976-1982. doi: 10.1097/j.pain.0000000000001939. PMID: 32694387; PMCID: PMC7680716.
+5.  Sabater-Gárriz Á, Molina-Mula J, Montoya P, Riquelme I. Pain assessment tools in adults with communication disorders: systematic review and meta-analysis. BMC Neurol. 2024 Feb 17;24(1):66. doi: 10.1186/s12883-024-03539-w. PMID: 38368314; PMCID: PMC10873938.
+6. Tosas MR. The downgrading of pain sufferers' credibility. Philos Ethics Humanit Med. 2021 Oct 6;16(1):8. doi: 10.1186/s13010-021-00105-x. PMID: 34610826; PMCID: PMC8493671.
+
 
 Explain why your problem is interdisciplinary, what fields can contribute to its understanding, and incorporate background related to what you learned from meeting with faculty/staff.
 
-Pain is often defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[6\]. Attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and neurologist, (will continue to add as I meet him again). Dr. Adam Naj, (will continue to add as I meet him again).
+Because pain is defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[6\], attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and neurologist, _(will continue to add as I meet him again)___________. Dr. Adam Naj, _(will continue to add as I meet him again)___________.
 
 References
 
@@ -58,8 +64,6 @@ library(tidyverse)
 library(survey)
 library(table1)
 library(corrplot)
-library(mice)
-library(mitools)
 ```
 
 > Load data
@@ -364,9 +368,10 @@ weighted_data <- svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
 sum(weights(weighted_data))
-weighted_sub <- survey::subset(weighted_data, complete.cases(comdiff,hip_binary,sex,
+weighted_sub <- subset(weighted_data, complete.cases(comdiff,hip_binary,sex,
                                                      race,age,hearing,dementia,
                                                      fatigue,anxiety,stroke))
+
 sum(weights(weighted_sub))
 
   fit1_sub <- svyglm(hip_binary~comdiff,
@@ -382,7 +387,12 @@ sum(weights(weighted_sub))
 summary(fit1_sub,logeffect=T)
 summary(fit2_sub,logeffect=T)
 exp(summary(fit3_sub)$coef)
-test <- as_tibble(summary(fit3_sub)$coef) %>% 
+results <- rownames_to_column(as.data.frame(summary(fit3_sub)$coef), var = "var") %>% 
+  mutate(or = exp(Estimate),
+         lower.CI = exp(Estimate - 1.96*`Std. Error`),
+         upper.CI = exp(Estimate + 1.96*`Std. Error`))
+
+results_null <- rownames_to_column(as.data.frame(summary(fit1_sub)$coef), var = "var") %>% 
   mutate(or = exp(Estimate),
          lower.CI = exp(Estimate - 1.96*`Std. Error`),
          upper.CI = exp(Estimate + 1.96*`Std. Error`))
@@ -401,8 +411,18 @@ sum(weights(weighted_sub2))
 dim(subset(data, complete.cases(comdiff,hip_binary,sex,
                                 race,age,hearing,dementia,
                                 fatigue,anxiety,stroke,lang_match)))
+
 weighted_sub_match <- subset(weighted_sub2, lang_match == "Match")
 weighted_sub_nomatch <- subset(weighted_sub2, lang_match == "No match")
+
+sum(weights(weighted_sub_match))
+sum(weights(weighted_sub_nomatch))
+dim(subset(subset(data, complete.cases(comdiff,hip_binary,sex,
+                                race,age,hearing,dementia,
+                                fatigue,anxiety,stroke,lang_match)),lang_match == "Match"))
+dim(subset(subset(data, complete.cases(comdiff,hip_binary,sex,
+                                race,age,hearing,dementia,
+                                fatigue,anxiety,stroke,lang_match)),lang_match == "No match"))
 
 ## check
 svymean(~age,weighted_sub_match)
@@ -420,11 +440,11 @@ fit3_sub_nomatch <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fati
 summary(fit3_sub_match)
 summary(fit3_sub_nomatch)
 
-test_match <- as_tibble(summary(fit3_sub_match)$coef) %>% 
+results_match <- as_tibble(summary(fit3_sub_match)$coef) %>% 
   mutate(or = exp(Estimate),
          lower.CI = exp(Estimate - 1.96*`Std. Error`),
          upper.CI = exp(Estimate + 1.96*`Std. Error`))
-test_nomatch <- as_tibble(summary(fit3_sub_nomatch)$coef) %>% 
+results_nomatch <- as_tibble(summary(fit3_sub_nomatch)$coef) %>% 
   mutate(or = exp(Estimate),
          lower.CI = exp(Estimate - 1.96*`Std. Error`),
          upper.CI = exp(Estimate + 1.96*`Std. Error`))
@@ -444,19 +464,23 @@ Describe your results and include relevant tables, plots, and code/comments used
 Table 1 shows selected characteristics of the U.S. adults examined in our analysis.
 
 ```{r}
-table1_data <- data
-label(table1_data$sex) <- "Sex"
-label(table1_data$hip_binary) <- "High Impact Pain"
-label(table1_data$race) <- "Race and Ethnicity"
-label(table1_data$age) <- "Age"
-label(table1_data$comdiff) <- "Difficulty Communicating"
-label(table1_data$dementia) <- "Dementia"
-label(table1_data$hearing) <- "Hearing"
-label(table1_data$fatigue) <- "Fatigue"
-label(table1_data$anxiety) <- "Anxiety"
-table1 <- table1(~ sex + age + race + comdiff + dementia +
-                   hearing + fatigue + anxiety| hip_binary,
-                 data=table1_data)
+table1_data <- subset(data, complete.cases(comdiff,hip_binary,sex,
+                                race,age,hearing,dementia,
+                                fatigue,anxiety,stroke))
+dim(subset(data, complete.cases(comdiff,hip_binary)))
+labels <- list(
+    variables=list(sex="Sex",
+                   age="Age (years)",
+                   dementia="Dementia",
+                   fatigue="Fatigue",
+                   anxiety = "Anxiety",
+                   stroke = "Stroke",
+                   hearing = "Hearing",
+                   race = "Race and Ethnicity"),
+    groups=list("", "Communication Difficulty"))
+strata <- c(list(Total=table1_data), split(table1_data, table1_data$comdiff))
+table1 <- table1(strata,labels,groupspan=c(1,3),
+                 data=table1_data,overall=c(left="Total"))
 table1 ## need to clean up + label. weighted vs numbers?
 
 sum(weights(weighted_data))
