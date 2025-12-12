@@ -58,9 +58,9 @@ I used "Sample Adult" data from the 2023 National Health Interview Survey (NHIS)
 ```{r}
 # install.packages("tidyverse)
 # install.packages("survey")
-install.packages("gtsummary")
+# install.packages("gtsummary")
 
-# library(tidyverse)
+library(tidyverse)
 library(survey)
 library(table1)
 library(corrplot)
@@ -158,9 +158,11 @@ Confounders and effect modifiers were identified a priori from the literature an
 knitr::include_graphics("dag_1122.png")
 ```
 
-Due to a high level of missingness (\~60%) in language variables, I decided to stratify by primary language in a subanalysis instead of the entire analytic population.
+Because the communication variable asked about communication in one's usual language, I decided to explore whether there was effect modification if one's primary language differed with the language they used at the doctor's. Participants were asked, first, whether they spoke a language other than English at home. If they responded yes, they were asked follow-up questions on what language they used when consuming media (watching television, reading news, or listening to the radio), seeing a doctor or other health care professional, and participating in social activities (visiting friends, clubs and meetings, going to parties). Participants could answer "English," "Other language" or refuse/report unknown. If participants answered "Other language" for any of the follow-up questions, they were classified as having a non-English primary language. If a participant had a non-English primary language and reported using English with their healthcare provider, they were classified as a "no match". If they had a non-English primary language and reported using their other language with their healthcare provider, they were classified as a "match". Participants who reported no second language were automatically classified as a "match." Participants were stratified by language "match" and "no match" to explore potential effect modification.
 
-> Finalize dataset before weighting
+Due to a high level of missingness (\~30%) in language variables, I decided to stratify by primary language in a subgroup analysis instead of the entire analytic population.
+
+> Finalize data set before weighting
 
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
@@ -268,7 +270,7 @@ summary(data)
 load("data.Rda")
 ```
 
-Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. This resulted in a loss of approximately 3% of participants. The R package survey 4.4-8 allows for these excluded participants to stay included for the calculation of the standard errors. With the survey package, the data set was weighted according to the weights provided by the NHIS dataset.
+Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. This resulted in a loss of approximately 3% of participants. The R package survey 4.4-8 allows for these excluded participants to stay included for the calculation of the standard errors. With the survey package, the data set was weighted according to the weights provided by the NHIS data set.
 
 I conducted a logistic regression of communication difficulty on high impact pain, adjusted for sex, race/ethnicity, age (continuous), hearing loss, dementia, fatigue, anxiety, and stroke. All confounders were included as factors, unless otherwise specified.
 
@@ -449,7 +451,7 @@ Describe your results and include relevant tables, plots, and code/comments used
 
 ### Study Population
 
-Table 1 shows selected characteristics of the U.S. adults examined in our analysis divided by communication difficulty. We examined N=28,444 respondents, representing a weighted N=248,826,036 individuals. 
+Table 1 shows selected characteristics of the U.S. adults examined in our analysis divided by communication difficulty. We examined N=28,444 respondents, representing a weighted N=248,826,036 individuals. Individuals with greater communication difficulty were more likely to be male, older and have ever diagnoses of dementia, anxiety, stroke, and hearing loss.
 
 ```{r}
 table1_data <- subset(data, complete.cases(comdiff,hip_binary,sex,
@@ -464,7 +466,7 @@ labels <- list(
                    fatigue="Fatigue",
                    anxiety = "Anxiety",
                    stroke = "Stroke",
-                   hearing = "Hearing"),
+                   hearing = "Hearing loss"),
     groups=list("", "Communication Difficulty"))
 
 ## create strata for table
@@ -472,11 +474,14 @@ strata <- c(list(Total=table1_data), split(table1_data, table1_data$comdiff))
 
 ## generate table1
 table1 <- table1(strata,labels,groupspan=c(1,3),
-                 data=table1_data,overall=c(left="Total"))
+                 data=table1_data,overall=c(left="Total"),
+                 caption="Table 1. Sample Characteristics")
 table1 
 ```
 
+### Associations between communication difficulty and high impact pain
 
+The association between communication difficulty level and high impact pain was statistically significant in U.S. adults before and after adjusting for covariates. Compared to those with no communication difficulty, adjusting for covariates, those with some communication difficulty had 2.23 times greater odds of high impact pain (95% CI, 1.88-2.63%; p\<0.001), while those with lots of or complete communication difficulty had 2.58 times greater odds of high impact pain (95% CI, 1.79-3.71%; p\<0.001) (Table 2).
 
 ```{r}
 ## main analysis output
@@ -487,81 +492,99 @@ results_full_gt <- tbl_regression(fit3_sub, exponentiate = T,
                                   include = "comdiff",
                                   label = list(comdiff = "Communication Difficulty Level"))
 
-tbl_merge_main <-
+## put into single table
+table2 <-
   tbl_merge(
     tbls = list(results_null_gt, results_full_gt),
     tab_spanner = c("**Univariate Model**", "**Multivariate Model**")
-  )
+  ) %>% 
+  modify_caption("**Table 2. Logistic Regression Results**")
 
-tbl_merge_main
-```
-
-### Subgroup Analysis
-Table 2 shows selected characteristics of the U.S. adults examined in our analysis divided by communication difficulty. We examined N=28,444 respondents, representing a weighted N=248,826,036 individuals. 
-
-```{r}
-table1_data_sub <- subset(data, complete.cases(comdiff,hip_binary,sex,
-                                race,age,hearing,dementia,
-                                fatigue,anxiety,stroke,lang_match))
-## set var names
-label(table1_data_sub$sex) <- "Sex"
-label(table1_data_sub$age) <- "Age (years)"
-label(table1_data_sub$race) <- "Race and Ethnicity"
-label(table1_data_sub$dementia) <- "Dementia"
-label(table1_data_sub$fatigue) <- "Fatigue"
-label(table1_data_sub$anxiety) <-  "Anxiety"
-label(table1_data_sub$stroke) <-  "Stroke"
-label(table1_data_sub$hearing) <-"Hearing"
-
-## create strata for table
-
-## generate table1
-table2 <- table1(~ sex + age + race + hearing + dementia +
-                   fatigue + anxiety + stroke | lang_match*comdiff,
-                 data=table1_data_sub,
-                 overall=c(left="Total"))
 table2
 ```
 
+### Subgroup Analysis
+
+Table 3 shows selected characteristics of the U.S. adults examined in our subgroup analysis by language strata and communication difficulty. We examined n=19,485 respondents, representing a weighted n=184,316,475 U.S. adults. Hispanics and NH Asians were overrepresented in the language no-match stratum, which consisted of n=831 adults (weighted n=8,454,144 individuals).
+
+```{r}
+table3_data_sub <- subset(data, complete.cases(comdiff,hip_binary,sex,
+                                race,age,hearing,dementia,
+                                fatigue,anxiety,stroke,lang_match))
+
+## set var names
+labels <- list(
+    variables=list(sex="Sex",
+                   age="Age (years)",
+                   race = "Race and Ethnicity",
+                   dementia="Dementia",
+                   fatigue="Fatigue",
+                   anxiety = "Anxiety",
+                   stroke = "Stroke",
+                   hearing = "Hearing loss"),
+    groups=list("Total", "Match", "No Match"))
+
+## create strata for table
+strata <- c(list(Total=table3_data_sub),
+            split(table3_data_sub, table3_data_sub$comdiff),
+            list("Total"=subset(table3_data_sub, lang_match=="Match")),
+            split(subset(table3_data_sub, lang_match=="Match"),
+                  subset(table3_data_sub, lang_match=="Match")$comdiff),
+            list("Total"=subset(table3_data_sub, lang_match=="No match")),
+            split(subset(table3_data_sub, lang_match=="No match"),
+                  subset(table3_data_sub, lang_match=="No match")$comdiff))
+
+## generate table1
+table3 <- table1(strata,labels,groupspan=c(4,4,4),
+                 data=table3_data_sub,overall=c(left="Total"),
+                 caption="Table 3. Subgroup Sample Characteristics")
+table3 
+
+```
+
+In the language matrch statum, compared to those with no communication difficulty, adjusting for covariates, those with some communication difficulty had 2.32 times greater odds of high impact pain (95% CI, 1.90-2.82%; p\<0.001), while those with lots of or complete communication difficulty had 2.85 times greater odds of high impact pain (95% CI, 1.87-4.33%; p\<0.001) (Table 4a). These results are similar to that in the full analytic sample.
+
+In the language no-match stratum, compared to those with no communication difficulty, adjusting for covariates, those with some communication difficulty had 1.41 times greater odds of high impact pain (95% CI, 0.42-4.75; p=0.577), while those with lots of or complete communication difficulty had 3.80 times greater odds of high impact pain (95% CI, 0.56-25.9; p=0.172) (Table 4b). Though none of these results were statistically significant, this may be due to limited power. The effect sizes are much higher in the no-match stratum compared to that in the match stratum and the main analysis, suggesting possible effect modification.
+
 ```{r}
 ## subgroup analysis output
+## match tables
 results_match_null_gt <- tbl_regression(fit1_sub_match, exponentiate = T,
                                   label = list(comdiff = "Communication Difficulty Level"),
                                   pvalue_fun = label_style_pvalue(digits = 3))
-
 results_match_full_gt <- tbl_regression(fit3_sub_match, exponentiate = T,
                                   include = "comdiff",
                                   label = list(comdiff = "Communication Difficulty Level"),
                                   pvalue_fun = label_style_pvalue(digits = 3))
-
-tbl_merge_match <-
+table4a <-
   tbl_merge(
     tbls = list(results_match_null_gt, results_match_full_gt),
     tab_spanner = c("**Univariate Model**", "**Multivariate Model**")
-  )
+  ) %>% 
+  modify_caption("**Table 4a. Language Match Regression Results**")
+table4a
 
-tbl_merge_match
-
+## no match tables
 results_nomatch_null_gt <- tbl_regression(fit1_sub_nomatch, exponentiate = T,
                                   label = list(comdiff = "Communication Difficulty Level"),
                                   pvalue_fun = label_style_pvalue(digits = 3))
-
 results_nomatch_full_gt <- tbl_regression(fit3_sub_nomatch, exponentiate = T,
                                   include = "comdiff",
                                   label = list(comdiff = "Communication Difficulty Level"),
                                   pvalue_fun = label_style_pvalue(digits = 3))
 
-tbl_merge_nomatch <-
+table4b <-
   tbl_merge(
     tbls = list(results_nomatch_null_gt, results_nomatch_full_gt),
     tab_spanner = c("**Univariate Model**", "**Multivariate Model**")
-  )
+  ) %>% 
+  modify_caption("**Table 4b. Language No-Match Regression Results**")
+table4b
 
-tbl_merge_nomatch
 ```
-
-
 
 ## Conclusion
 
 This the conclusion. The @sec-results can be invoked here.
+
+Individuals with communication difficulty represent an understudied group in pain outcomes research. Communication difficulty was significantly associated with high impact pain, for both some and lots of or complete difficulty when compared to no difficulty. Subgroup analysis suggests effect modification by whether one's language used at the doctor's differed from their primary language. Those with differing language observed worse pain outcomes, though this did not reach statistical significance. Our findings indicate the need for increased research in both pain assessment and management in this growing vulnerable population, particularly for those who do not use their primary language at the doctor's. Study limitations include possible recall bias, use of cross-sectional data, and high missing-ness in the subgroup analysis.
