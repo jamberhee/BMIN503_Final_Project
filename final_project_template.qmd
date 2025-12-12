@@ -41,11 +41,11 @@ References
 
 Explain why your problem is interdisciplinary, what fields can contribute to its understanding, and incorporate background related to what you learned from meeting with faculty/staff.
 
-Because pain is defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[6\], attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and neurologist, *(will continue to add as I meet him again)*\_\_\_\_\_\_\_\_\_\_. Dr. Adam Naj, *(will continue to add as I meet him again)*\_\_\_\_\_\_\_\_\_\_.
+Because pain is defined by a biopsychosocial model, meaning physiological, psychological, and social factors all play an integral role, interacting with each other to create pain outcomes \[7\], attempting to study pain at the population level is, thus, an intricate task. I could benefit to receive inputs from general practitioners, pain specialists, psychologists, and even behavioral and social scientists to gain insights on my research question but also from epidemiologists to learn to how I can explore this question in a nationally-representative survey and what considerations I have to make in the process. Dr. John Farrar, as both a clinical epidemiologist and pain clinician, has helped me conceptualize my causal framework for this analysis, particularly when thinking about potential confounders. Dr. Adam Naj, as an epidemiologist, has helped me identify how to best model my data and think about data missingness.
 
 References
 
-6.  Meints SM, Edwards RR. Evaluating psychosocial contributions to chronic pain outcomes. Prog Neuropsychopharmacol Biol Psychiatry. 2018 Dec 20;87(Pt B):168-182. doi: 10.1016/j.pnpbp.2018.01.017. Epub 2018 Jan 31. PMID: 29408484; PMCID: PMC6067990.
+7.  Meints SM, Edwards RR. Evaluating psychosocial contributions to chronic pain outcomes. Prog Neuropsychopharmacol Biol Psychiatry. 2018 Dec 20;87(Pt B):168-182. doi: 10.1016/j.pnpbp.2018.01.017. Epub 2018 Jan 31. PMID: 29408484; PMCID: PMC6067990.
 
 ## Methods {#sec-methods}
 
@@ -55,7 +55,7 @@ I used "Sample Adult" data from the 2023 National Health Interview Survey (NHIS)
 
 > Install and load libraries
 
-```{r}
+```{r message=FALSE}
 # install.packages("tidyverse)
 # install.packages("survey")
 # install.packages("gtsummary")
@@ -200,7 +200,7 @@ data <- data %>%
 
 ## check for correlation between conditions
 vars <- data[, c(15:18,20)]
-vars01 <- as.tibble(ifelse(vars == 2, 1, 0))
+vars01 <- as_tibble(ifelse(vars == 2, 1, 0))
 cor_mat <- cor(vars01,use = "pairwise.complete.obs")
 corrplot(cor_mat, method = "color",
          type = "upper", tl.col = "black", tl.cex = 0.7)
@@ -267,7 +267,7 @@ summary(data)
 
 ## save data as r data file for future easy loading
 # save(data, file = "data.Rda")
-load("data.Rda")
+# load("data.Rda")
 ```
 
 Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. This resulted in a loss of approximately 3% of participants. The R package survey 4.4-8 allows for these excluded participants to stay included for the calculation of the standard errors. With the survey package, the data set was weighted according to the weights provided by the NHIS data set.
