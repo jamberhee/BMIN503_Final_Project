@@ -1,7 +1,7 @@
 ---
-title: "Your Title"
+title: "Association between communication difficulty and high impact pain in U.S. adults"
 subtitle: "BMIN503/EPID600 Final Project"
-author: "Amber Rhee"
+author: "Amber Rhee, MHS"
 format: html
 editor: visual
 number-sections: true
