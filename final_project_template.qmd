@@ -135,7 +135,7 @@ data <- adult2023 %>%
          pain = PAIFRQ3M_A,
          hip = PAIWKLM3M_A)
 
-## if no pain, no hip also
+## if participants have no pain, no hip also
 data <- data %>% 
   mutate(hip = ifelse(pain == 1, 1, hip)) %>%
   mutate(hip_binary = ifelse(pain == 1, 0, hip_binary))
@@ -157,14 +157,13 @@ Confounders and effect modifiers were identified a priori from the literature an
 knitr::include_graphics("dag_1122.png")
 ```
 
-Due to a high level of missingness (~30%), I decided to stratify by primary language in a subanalysis instead of the entire analytic population.
+Due to a high level of missingness (~60%) in language variables, I decided to stratify by primary language in a subanalysis instead of the entire analytic population.
 
 > Finalize dataset before weighting
 
 ```{r}
 ## rename variables of interest (confounders, effect modifiers)
 ## isolate variables i want to work with
-## 932 (3% of total sample) missing outcome
 data <- data %>% 
   rename(lang_other = LANGHM_A,
          lang_tv = LANGMED_A,
@@ -183,6 +182,12 @@ data <- data %>%
          hearing,dementia,fatigue,anxiety,sex,stroke)
 
 summary(data)
+
+## check how many individuals i lose with complete case
+## 932 (3% of total sample) missing outcome
+dim(subset(data, complete.cases(comdiff,hip_binary,sex,
+                                race,age,hearing,dementia,
+                                fatigue,anxiety,stroke)))
 
 ## make na values na
 cols <- c(6,9:12,15:20)
@@ -207,22 +212,26 @@ data <- data %>%
   mutate(across(lang_tv:lang_soc, ~ as.factor(case_when(.x == 1 ~ "English",
                                               is.na(.x) ~ "Missing",
                                               .x == 2 ~ "Other language"))),
-         otherlang_any = as.factor(case_when(if_any(lang_tv:lang_soc, ~ .x == "Other language") ~ "Yes",
-                                   if_any(lang_tv:lang_soc, ~ .x == "English") ~ "No",
-                                   TRUE ~ NA)),
-         across(lang_tv:lang_soc, ~ ifelse(.x == "Missing", NA, .x)))
+         primary_other = as.factor(ifelse(if_any(lang_tv:lang_soc, ~ .x == "Other language"),"Yes",NA)))
+primary <- data %>% 
+  filter(is.na(primary_other)) %>% 
+  mutate(primary_English  = as.factor(ifelse(if_any(lang_tv:lang_soc, ~ .x == "English"),"No",NA)))
+data <- data %>% 
+  mutate(primary_other = factor(primary_other,
+                                levels = c("No","Yes")),
+         primary_other = as.factor(ifelse(data$id %in% subset(primary,primary_English == "No")$id, 2, data$primary_other)))
 
 ## convert language vars to factors
-data[,10:12] <- lapply(data[,10:12], factor,
-                       levels = c(1,3),
-                       labels = c("English", "Other language"))
+data[data == "Missing"] <- NA
+data[,10:12] <- lapply(data[,10:12], droplevels)
 
 ## convert y/n vars to factors
-data[,c(9,15:18,20)] <- lapply(data[,c(9,15:18,20)], factor,
+data[,c(9,15:18,20:21)] <- lapply(data[,c(9,15:18,20:21)], factor,
                        levels = c(1,2),
                        labels = c("Yes", "No"))
 
-data[,c(9,15:18,20)] <- lapply(data[,c(9,15:18,20)], relevel,
+## make "no" the ref groups in y/n vars
+data[,c(9,15:18,20:21)] <- lapply(data[,c(9,15:18,20:21)], relevel,
                             ref = "No")
 
 ## convert remaining vars to factors                    
@@ -241,182 +250,124 @@ data <- data %>%
                       labels = c("Male","Female")))
 
 ## create variable for whether otherlang matches with lang_doc
+## if don't speak second language other than English (lang_other),
+### assume primary language matches with language used at doctors
 data <- data %>% 
-  mutate(lang_match = as.factor(case_when(lang_doc == "English" & otherlang_any == "No" ~ "Match",
-                                          lang_doc == "Other language" & otherlang_any == "Yes" ~ "Match",
-                                          lang_doc == "English" & otherlang_any == "Yes" ~ "No match",
-                                          lang_doc == "Other language" & otherlang_any == "No" ~ "No match",
+  mutate(lang_match = as.factor(case_when(lang_other == "No" ~ "Match",
+                                          lang_doc == "English" & primary_other == "No" ~ "Match",
+                                          lang_doc == "Other language" & primary_other == "Yes" ~ "Match",
+                                          lang_doc == "English" & primary_other == "Yes" ~ "No match",
+                                          lang_doc == "Other language" & primary_other == "No" ~ "No match",
                                           TRUE ~ NA)))
 
 summary(data)
 
+## save data as r data file for future easy loading
 # save(data, file = "data.Rda")
 load("data.Rda")
 ```
 
-For all covariate variables, missing values were imputed using multiple imputation by chained equations (MICE).
 
-> MICE
-
-```{r}
-## remove test to clear up environment
-rm(weighted_data_test)
-
-## prepare for multiple imputation followed by deletion of imputed outcomes
-data_main <- data %>%
-  select(-c(6:7,9:12,21))
-
-## check missingness pattern
-md.pattern(data_main)
-
-## remove lang from imputation
-init = mice(data_main, maxit = 0)
-meth = init$method
-
-meth[c("lang_match")] = ""
-
-
-## run imputation, 5 iterations
-imp <- mice(data_main, method=meth, maxit = 5, seed = 1234)
-
-## imputation = very computationally intensive so comment out
-# save(imp, file="imp.Rda")
-load("imp.Rda")
-
-# check for convergence
-plot(imp)
-summary(imp)
-```
-
-Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. They remain included for the calculation of the standard errors. Imputed datasets were weighted using the R package survey 4.4-8 according to the weights provided by the NHIS dataset. 
-
-> Apply weighting+subsetting
-
-```{r}
-impdata <- mice::complete(imp, action = "all")
-
-data.list <- vector("list", 5)
-# subset the data without Y and A's that had missing values
-# and record those subset data
-for (i in 1:5) {
-  analytic.i <- impdata[[i]]
-  analytic.i$miss <- 1
-  analytic.i$miss[analytic.i$id %in%
-                    subset(data,complete.cases(comdiff,hip_binary))$id] <- 0
-  data.list[[i]] <- analytic.i
-}
-data.list 
-
-
-require(survey)
-fit.list1 <- vector("list", 5)
-fit.list2 <- vector("list", 5)
-fit.list3 <- vector("list", 5)
-for (i in 1:5) {
-  analytic.i <- data.list[[i]]
-  # assigning survey features = 1
-  weighted_data <- svydesign(id=~psu, weights=~sweight,
-                          strata=~strata, nest=TRUE,
-                          data = analytic.i)
-  weighted_complete <- subset(weighted_data, miss == 0)
-  fit1 <- svyglm(hip_binary~comdiff,
-                  family=quasibinomial,
-                  design=weighted_complete, na.action = na.omit)
-  fit.list1[[i]] <-  fit1
-  fit2 <- svyglm(hip_binary~comdiff+sex+race+age,
-                  family=quasibinomial,
-                  design=weighted_complete, na.action = na.omit)
-  fit.list2[[i]] <-  fit2
-  fit3 <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
-                  family=quasibinomial,
-                  design=weighted_complete, na.action = na.omit)
-  fit.list3[[i]] <-  fit3
-}
-
-
-require(mitools)
-fit.list <- list(fit.list1,fit.list2,fit.list3)
-pooled.estimates <- lapply(fit.list,MIcombine)
-pooled.estimates
-
-lapply(pooled.estimates, summary, logeffect=T)
-
-exp(summary(fit.list3[[1]])$coef)
-summary(pooled.estimates[[3]], logeffect=T) %>% View()
-## apply weights
-
-## subset data to only include participants with exposure and outcome data
-
-## representative of 258237552 individuals to 249862610 individuals weighted
-sum(weights(weighted_data))
-sum(weights(weighted_complete))
-
-## total number of individuals examined
-length(unique(subset(data,complete.cases(comdiff,hip_binary))$id))
-
-```
-
+Participants missing the exposure, outcome, or both variables were excluded from the calculation of the estimates. This resulted in a loss of approximately 3% of participants. The R package survey 4.4-8 allows for these excluded participants to stay included for the calculation of the standard errors. With the survey package, the data set was weighted according to the weights provided by the NHIS dataset. 
 
 I conducted a logistic regression of communication difficulty on high impact pain, adjusted for sex, race/ethnicity, age (continuous), hearing loss, dementia, fatigue, anxiety, and stroke. All confounders were included as factors, unless otherwise specified.
 
 
-As a subanalysis,
+> Apply weighting and logistic regression
 
-Try without MICE
 ```{r}
+## apply weighting
 weighted_data <- svydesign(id=~psu, weights=~sweight,
                           strata=~strata, nest=TRUE,
                           data = data)
+
+## check number of individuals represented
 sum(weights(weighted_data))
+
+## create subset of complete cases
 weighted_sub <- subset(weighted_data, complete.cases(comdiff,hip_binary,sex,
                                                      race,age,hearing,dementia,
                                                      fatigue,anxiety,stroke))
 
-sum(weights(weighted_sub))
-
-  fit1_sub <- svyglm(hip_binary~comdiff,
-                  family=quasibinomial,
-                  design=weighted_sub, na.action = na.omit)
-  fit2_sub <- svyglm(hip_binary~comdiff+sex+race+age,
-                  family=quasibinomial,
-                  design=weighted_sub, na.action = na.omit)
-  fit3_sub <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
-                  family=quasibinomial,
-                  design=weighted_sub, na.action = na.omit)
-
-summary(fit1_sub,logeffect=T)
-summary(fit2_sub,logeffect=T)
-exp(summary(fit3_sub)$coef)
-results <- rownames_to_column(as.data.frame(summary(fit3_sub)$coef), var = "var") %>% 
-  mutate(or = exp(Estimate),
-         lower.CI = exp(Estimate - 1.96*`Std. Error`),
-         upper.CI = exp(Estimate + 1.96*`Std. Error`))
-
-results_null <- rownames_to_column(as.data.frame(summary(fit1_sub)$coef), var = "var") %>% 
-  mutate(or = exp(Estimate),
-         lower.CI = exp(Estimate - 1.96*`Std. Error`),
-         upper.CI = exp(Estimate + 1.96*`Std. Error`))
-
-## check
+## check to see that subsetting / weighting done correctly
 svymean(~age,weighted_sub)
 svyby(~age,~I(complete.cases(comdiff,hip_binary,sex,
                                                      race,age,hearing,dementia,
                                                      fatigue,anxiety,stroke)),weighted_data,svymean)
 
+## check new number of individuals represented
+sum(weights(weighted_sub))
 
+
+## fit univariate model
+fit1_sub <- svyglm(hip_binary~comdiff,
+                  family=quasibinomial,
+                  design=weighted_sub, na.action = na.omit)
+
+## fit demographic vars
+fit2_sub <- svyglm(hip_binary~comdiff+sex+race+age,
+                  family=quasibinomial,
+                  design=weighted_sub, na.action = na.omit)
+  
+## fit all covariates
+fit3_sub <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
+                  family=quasibinomial,
+                  design=weighted_sub, na.action = na.omit)
+
+## check results
+summary(fit1_sub)
+summary(fit2_sub)
+summary(fit3_sub)
+
+## put in data frame
+results_null <- rownames_to_column(as.data.frame(summary(fit1_sub)$coef),
+                                   var = "Communication Difficulty Level") %>% 
+  mutate(or = round(exp(Estimate),digits = 2),
+         lower.CI = round(exp(Estimate - 1.96*`Std. Error`),digits = 2),
+         upper.CI = round(exp(Estimate + 1.96*`Std. Error`),digits = 2),
+         `Pr(>|t|)` = signif(`Pr(>|t|)`, digits = 3),
+         `Std. Error` = round(`Std. Error`, digits = 3)) %>% 
+  select(1,6,3,7:8,5)
+  
+
+## put in data frame
+results_full <- rownames_to_column(as.data.frame(summary(fit3_sub)$coef),
+                                   var = "Communication Difficulty Level") %>% 
+  mutate(or = exp(Estimate),
+         lower.CI = exp(Estimate - 1.96*`Std. Error`),
+         upper.CI = exp(Estimate + 1.96*`Std. Error`),
+         `Pr(>|t|)` = signif(`Pr(>|t|)`, digits = 3),
+         `Std. Error` = round(`Std. Error`, digits = 3)) %>% 
+  select(1,6,3,7:8,5)
+
+```
+
+
+As a subanalysis, I conducted the same logistic regression of communication difficulty on high impact pain, adjusted for sex, race/ethnicity, age (continuous), hearing loss, dementia, fatigue, anxiety, and stroke, but I restricted my analysis to those who had data on primary language language. Similar to the main analysis, I used a complete cases only. 
+
+```{r}
+## create subset of complete cases, including lang_match as new covariate
 weighted_sub2 <- subset(weighted_data, complete.cases(comdiff,hip_binary,sex,
                                                      race,age,hearing,dementia,
                                                      fatigue,anxiety,stroke,lang_match))
+
+## check new number of individuals represented
 sum(weights(weighted_sub2))
+
+## check number of individuals in actual dataset
 dim(subset(data, complete.cases(comdiff,hip_binary,sex,
                                 race,age,hearing,dementia,
                                 fatigue,anxiety,stroke,lang_match)))
 
+##further subset datasets into strata by lang_match
 weighted_sub_match <- subset(weighted_sub2, lang_match == "Match")
 weighted_sub_nomatch <- subset(weighted_sub2, lang_match == "No match")
 
+## check number of individuals represented by each strata
 sum(weights(weighted_sub_match))
 sum(weights(weighted_sub_nomatch))
+
+## check number of individuals in actual strata
 dim(subset(subset(data, complete.cases(comdiff,hip_binary,sex,
                                 race,age,hearing,dementia,
                                 fatigue,anxiety,stroke,lang_match)),lang_match == "Match"))
@@ -424,12 +375,22 @@ dim(subset(subset(data, complete.cases(comdiff,hip_binary,sex,
                                 race,age,hearing,dementia,
                                 fatigue,anxiety,stroke,lang_match)),lang_match == "No match"))
 
-## check
+## check to see that subsetting / weighting done correctly
 svymean(~age,weighted_sub_match)
 svyby(~age,~I(lang_match == "Match"),weighted_sub2,svymean)
 svymean(~age,weighted_sub_nomatch)
 svyby(~age,~I(lang_match == "No match"),weighted_sub2,svymean)
 
+
+## fit univariate model
+fit1_sub_match <- svyglm(hip_binary~comdiff,
+                  family=quasibinomial,
+                  design=weighted_sub_match, na.action = na.omit)
+fit1_sub_nomatch <- svyglm(hip_binary~comdiff,
+                  family=quasibinomial,
+                  design=weighted_sub_nomatch, na.action = na.omit)
+
+## fit full model
 fit3_sub_match <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fatigue+anxiety+stroke,
                          family=quasibinomial,
                          design=weighted_sub_match, na.action = na.omit)
@@ -437,19 +398,48 @@ fit3_sub_nomatch <- svyglm(hip_binary~comdiff+sex+race+age+hearing+dementia+fati
                          family=quasibinomial,
                          design=weighted_sub_nomatch, na.action = na.omit)
 
+## check results
+summary(fit1_sub_match)
+summary(fit1_sub_nomatch)
 summary(fit3_sub_match)
 summary(fit3_sub_nomatch)
 
-results_match <- as_tibble(summary(fit3_sub_match)$coef) %>% 
-  mutate(or = exp(Estimate),
-         lower.CI = exp(Estimate - 1.96*`Std. Error`),
-         upper.CI = exp(Estimate + 1.96*`Std. Error`))
-results_nomatch <- as_tibble(summary(fit3_sub_nomatch)$coef) %>% 
-  mutate(or = exp(Estimate),
-         lower.CI = exp(Estimate - 1.96*`Std. Error`),
-         upper.CI = exp(Estimate + 1.96*`Std. Error`))
+## put in data frame
+results_match_null <- rownames_to_column(as.data.frame(summary(fit1_sub_match)$coef),
+                                   var = "Communication Difficulty Level") %>% 
+  mutate(or = round(exp(Estimate),digits = 2),
+         lower.CI = round(exp(Estimate - 1.96*`Std. Error`),digits = 2),
+         upper.CI = round(exp(Estimate + 1.96*`Std. Error`),digits = 2),
+         `Pr(>|t|)` = signif(`Pr(>|t|)`, digits = 3),
+         `Std. Error` = round(`Std. Error`, digits = 3)) %>% 
+  select(1,6,3,7:8,5)
 
-prop.table(svytable(~comdiff, weighted_sub))
+results_match_full <- rownames_to_column(as.data.frame(summary(fit3_sub_match)$coef),
+                                   var = "Communication Difficulty Level") %>% 
+  mutate(or = round(exp(Estimate),digits = 2),
+         lower.CI = round(exp(Estimate - 1.96*`Std. Error`),digits = 2),
+         upper.CI = round(exp(Estimate + 1.96*`Std. Error`),digits = 2),
+         `Pr(>|t|)` = signif(`Pr(>|t|)`, digits = 3),
+         `Std. Error` = round(`Std. Error`, digits = 3)) %>% 
+  select(1,6,3,7:8,5)
+
+results_nomatch_null <- rownames_to_column(as.data.frame(summary(fit1_sub_nomatch)$coef),
+                                   var = "Communication Difficulty Level") %>% 
+  mutate(or = round(exp(Estimate),digits = 2),
+         lower.CI = round(exp(Estimate - 1.96*`Std. Error`),digits = 2),
+         upper.CI = round(exp(Estimate + 1.96*`Std. Error`),digits = 2),
+         `Pr(>|t|)` = signif(`Pr(>|t|)`, digits = 3),
+         `Std. Error` = round(`Std. Error`, digits = 3)) %>% 
+  select(1,6,3,7:8,5)
+
+results_nomatch_full <- rownames_to_column(as.data.frame(summary(fit3_sub_nomatch)$coef),
+                                   var = "Communication Difficulty Level") %>% 
+  mutate(or = round(exp(Estimate),digits = 2),
+         lower.CI = round(exp(Estimate - 1.96*`Std. Error`),digits = 2),
+         upper.CI = round(exp(Estimate + 1.96*`Std. Error`),digits = 2),
+         `Pr(>|t|)` = signif(`Pr(>|t|)`, digits = 3),
+         `Std. Error` = round(`Std. Error`, digits = 3)) %>% 
+  select(1,6,3,7:8,5)
 
 ```
 
